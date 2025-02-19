@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "AutoTagMate",
-  "version": "1.0.3",
+  "version": "1.0.0",
   "description": "An extension for wrapping text in tags in input fields on websites.",
-  "permissions": ["activeTab", "scripting", "storage"],
+  "permissions": ["storage"],
   "action": {
     "default_icon": {
       "16": "icons/icon16.png",
