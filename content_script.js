@@ -186,30 +186,107 @@ function autoCloseTag(el) {
     }
 }
 
-/* ============================================
-   4. Main Event Listener
-   ============================================ */
-
 // Значения по умолчанию – будут обновлены из chrome.storage.
 let activationKey = "Tab"; // Клавиша активации по умолчанию.
 let enableAutoClose = true; // Автозакрытие тега включено по умолчанию.
+let excludedSites = ""; // Исключенные сайты
+
+// Проверка, не находится ли текущий сайт в списке исключенных
+function isExcludedSite() {
+    if (!excludedSites) return false;
+    
+    const currentHost = window.location.hostname;
+    const excludedArray = excludedSites.split(',').map(site => site.trim());
+    
+    return excludedArray.some(site => 
+        currentHost === site || 
+        currentHost.endsWith('.' + site) || 
+        site.startsWith('*.') && currentHost.endsWith(site.substring(1))
+    );
+}
 
 // Загружаем настройки из chrome.storage.sync.
-chrome.storage.sync.get({
-    activationKey: "Tab",
-    autoCloseTag: true
-}, (items) => {
-    activationKey = items.activationKey;
-    enableAutoClose = items.autoCloseTag;
+function loadSettings() {
+    chrome.storage.sync.get({
+        activationKey: "Tab",
+        autoCloseTag: true,
+        excludedSites: ""
+    }, (items) => {
+        activationKey = items.activationKey;
+        enableAutoClose = items.autoCloseTag;
+        excludedSites = items.excludedSites;
+        
+        // Если на исключенном сайте - можно отключить обработчик событий
+        if (isExcludedSite()) {
+            console.log("AutoTagMate: текущий сайт в списке исключенных");
+            document.removeEventListener("keydown", keydownHandler);
+        } else {
+            // Убедимся, что обработчик добавлен
+            document.addEventListener("keydown", keydownHandler);
+        }
+    });
+}
+
+// Загружаем настройки при запуске
+loadSettings();
+
+// Подписываемся на изменения настроек
+chrome.storage.onChanged.addListener(function(changes, namespace) {
+    if (namespace === 'sync') {
+        if (changes.activationKey) {
+            activationKey = changes.activationKey.newValue;
+        }
+        if (changes.autoCloseTag) {
+            enableAutoClose = changes.autoCloseTag.newValue;
+        }
+        if (changes.excludedSites) {
+            excludedSites = changes.excludedSites.newValue;
+            
+            // Перепроверяем, не должен ли быть отключен обработчик
+            if (isExcludedSite()) {
+                document.removeEventListener("keydown", keydownHandler);
+            } else {
+                document.addEventListener("keydown", keydownHandler);
+            }
+        }
+    }
 });
 
-// Отслеживаем события клавиатуры через делегирование.
-document.addEventListener("keydown", function(e) {
+// Выносим обработчик событий в отдельную функцию, чтобы его можно было удалить
+function keydownHandler(e) {
     const target = e.target;
     if (!isEditableElement(target)) return;
 
-    // Обработка нажатия клавиши активации (например, Tab или заданная комбинация).
-    if (e.key === activationKey) {
+    // Проверяем, соответствует ли нажатие клавиши установленной комбинации
+    let keyMatches = false;
+    
+    if (activationKey === "Tab" && e.key === "Tab" && !e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey) {
+        keyMatches = true;
+    } else {
+        // Разбираем пользовательскую комбинацию
+        const parts = activationKey.split('+');
+        
+        // Проверяем модификаторы
+        const hasCtrl = parts.includes("Ctrl");
+        const hasAlt = parts.includes("Alt");
+        const hasShift = parts.includes("Shift");
+        const hasMeta = parts.includes("Meta");
+        
+        // Последняя часть обычно клавиша (не модификатор)
+        const mainKey = parts.filter(p => !["Ctrl", "Alt", "Shift", "Meta"].includes(p))[0];
+        
+        // Проверяем соответствие модификаторов и клавиши
+        if (e.ctrlKey === hasCtrl && 
+            e.altKey === hasAlt && 
+            e.shiftKey === hasShift && 
+            e.metaKey === hasMeta &&
+            (e.key.toLowerCase() === mainKey.toLowerCase() || 
+             e.code === 'Key' + mainKey)) {
+            keyMatches = true;
+        }
+    }
+
+    if (keyMatches) {
         e.preventDefault(); // Предотвращаем стандартное поведение.
         if (hasSelection(target)) {
             wrapSelectedText(target);
@@ -225,4 +302,7 @@ document.addEventListener("keydown", function(e) {
             autoCloseTag(target);
         }, 0);
     }
-});
+}
+
+// Отслеживаем события клавиатуры через делегирование.
+document.addEventListener("keydown", keydownHandler);
