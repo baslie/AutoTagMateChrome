@@ -1,5 +1,7 @@
 /* options.js */
 
+"use strict";
+
 /**
  * Formats a key combination into a string, for example "Ctrl+Shift+P".
  * @param {KeyboardEvent} e - The keyboard event.

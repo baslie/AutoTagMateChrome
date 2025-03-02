@@ -1,67 +1,34 @@
-# AutoTagMate for Chrome: Your Ultimate HTML Tag Assistant 🚀
+# AutoTagMate
 
-Tired of manually typing HTML tags every time you write or edit text on the web? **AutoTagMate** extension is here to boost your productivity by effortlessly wrapping your text in HTML tags with a single key press. Whether you’re coding, writing content, or crafting AI prompts, AutoTagMate streamlines your workflow and reduces errors.
-
----
-
-## Key Features
-
-- **Smart Tag Wrapping:**  
-  AutoTagMate instantly detects the word or phrase immediately before your cursor—or wraps selected text—with matching HTML tags. Say goodbye to tedious manual typing!
-
-- **Automatic Tag Closure:**  
-  When you type an opening tag (e.g., `<Example>`), the extension automatically inserts the corresponding closing tag (`</Example>`), ensuring your HTML is always correctly structured.
-
-- **Customizable Activation Key:**  
-  Set your preferred keyboard shortcut (such as Tab, Ctrl+P, or any combination) to trigger tag wrapping on the fly, perfectly fitting into your workflow.
-
-- **Excluded Sites Option:**  
-  Choose specific websites where you don’t want AutoTagMate to run, so you get assistance only where you need it most.
-
-- **Ideal for AI Prompt Crafting:**  
-  Enhance your prompt writing for ChatGPT, Claude AI, and other neural network-based assistants by quickly formatting your instructions with clear HTML tags.
-
-- **Clean, Modern Interface:**  
-  The intuitive settings page, styled with Tailwind CSS, allows you to easily adjust your preferences. Enjoy a sleek, lightweight extension that integrates seamlessly with your browser.
+**AutoTagMate** is a browser extension that automatically wraps the entered text in HTML tags in input fields (`input`, `textarea`) and in elements with the `contenteditable` attribute.
 
 ---
 
-## How It Works
+## Functionality
 
-1. **Easy Installation:**  
-   Simply add AutoTagMate from the Chrome Web Store or load the extension as unpacked from your project folder in Chrome’s extensions page (`chrome://extensions/`). It starts working immediately on all text fields and content-editable areas.
-
-2. **Effortless Usage:**  
-   - **Tag Wrapping:** Type your text normally, then press your configured activation key to wrap the word before the cursor (or the selected text) in HTML tags.
-   - **Automatic Tag Closure:** As soon as you type an opening tag and hit `>`, AutoTagMate inserts the corresponding closing tag automatically.
-
-3. **Customize Your Experience:**  
-   Access the settings via the extension icon or the options page to:
-   - Change the activation key,
-   - Toggle auto tag-closing on or off,
-   - Specify a list of excluded sites—all from one convenient interface.
+- **Wrapping text in tags:**
+  - **Without selection:** If the cursor is placed without any selected text, the extension identifies the word or phrase immediately before the cursor and wraps it with tags in the format `<text></text>`.
+  - **With selection:** If text is selected, it will be wrapped with similar tags.
+- **Automatic tag closing:** When an opening tag and the `>` character are typed, the extension automatically inserts the corresponding closing tag.
+- **Settings:**
+  - **Activation key:** You can now set a key combination on the fly: simply click in an input field, press the desired combination (for example, Ctrl+P) and it will be automatically captured.
+  - **Enable/disable auto tag closing.**
+  - **Excluded sites:** Specify a list of websites on which the extension will not run.
+- **Settings design:** The settings page is styled using Tailwind CSS. The main CSS file `all.css` is located in the `css` folder.
 
 ---
 
-## Installation
+## Privacy Policy
 
-1. **Clone or Download the Project:**  
-   Obtain the project repository from your preferred source.
-
-2. **Generate CSS (if needed):**  
-   If necessary, generate the `css/all.css` file (for example, using the Tailwind CLI).
-
-3. **Load the Extension in Chrome:**
-   - Open Chrome and navigate to `chrome://extensions/`.
-   - Enable "Developer mode."
-   - Click "Load unpacked" and select the project folder.
-   - AutoTagMate will be installed and active on all applicable pages.
+We do not collect or transmit any personal data. All processing is done locally in your browser.  
+- **No external servers**: The extension does not send any data outside.  
+- **Local storage only**: Any settings (activation key, auto-close preference, or excluded sites) are kept solely in the browser's `chrome.storage`.  
 
 ---
 
 ## Project Structure
 
-```plaintext
+```
 AutoTagMate/
 ├── manifest.json
 ├── background.js
@@ -78,19 +45,37 @@ AutoTagMate/
 
 ---
 
-## Who Benefits
+## Installation
 
-- **Web Developers & Designers:**  
-  Enhance your coding efficiency and minimize syntax errors by letting AutoTagMate handle repetitive tag insertions.
+1. Clone or download the project.
+2. If necessary, generate the `css/all.css` file (for example, using Tailwind CLI).
+3. Open Chrome and navigate to `chrome://extensions/`.
+4. Enable "Developer mode".
+5. Click "Load unpacked" and select the project folder.
+6. The extension will be installed and active on all pages.
 
-- **Content Creators & Bloggers:**  
-  Streamline your editing process and effortlessly format your content without distractions.
+---
 
-- **AI Enthusiasts & Prompt Writers:**  
-  Perfect your AI prompt structure for tools like ChatGPT and Claude AI by clearly delineating your content with HTML tags.
+## Usage
+
+- **Wrapping text:**  
+  In an input field or an editor supporting `contenteditable`, type a word or phrase and press the configured activation key (default is Tab or the chosen combination). The text will be transformed into `<text></text>`, with the cursor positioned between the tags.
+- **Automatic tag closing:**  
+  When you type an opening tag (for example, `<Example>`), the extension automatically inserts `</Example>` immediately after the cursor.
+- **Settings:**  
+  Click the extension icon or open the settings page (popup) to change the activation key, enable/disable auto tag closing, or specify a list of excluded websites.
+
+---
+
+## Additional Features
+
+- **Key combination selection:**  
+  In the settings page, instead of manually entering the key combination, the user can simply press the desired combination (for example, Ctrl+P) and it will be automatically captured.
+- **Tailwind CSS:**  
+  The settings page is styled using Tailwind CSS. The file `all.css` is located in the `css` folder.
 
 ---
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
+This project is licensed under the MIT License.

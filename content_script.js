@@ -1,8 +1,18 @@
 /* content_script.js */
 
+"use strict";
+
+/**
+ * AutoTagMate Content Script
+ * -------------------------------------------
+ * Enhanced Safe Browsing compliance:
+ * - This script does NOT collect or send user data to external servers.
+ * - All logic runs locally in the browser.
+ */
+
 /* ============================================
    1. Utility Functions
-   ============================================ */
+   ============================================ *
 
 /**
  * Проверяет, является ли элемент редактируемым.
