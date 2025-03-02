@@ -11,7 +11,7 @@
   - **With selection:** If text is selected, it will be wrapped with similar tags.
 - **Automatic tag closing:** When an opening tag and the `>` character are typed, the extension automatically inserts the corresponding closing tag.
 - **Settings:**
-  - **Activation key:** You can now set a key combination on the fly: simply click in an input field, press the desired combination (for example, Ctrl+P) and it will be automatically captured.
+  - **Activation key:** You can now set a key combination on the fly: simply click in an input field, press the desired combination (for example, Ctrl+\) and it will be automatically captured.
   - **Enable/disable auto tag closing.**
   - **Excluded sites:** Specify a list of websites on which the extension will not run.
 - **Settings design:** The settings page is styled using Tailwind CSS. The main CSS file `all.css` is located in the `css` folder.
@@ -70,7 +70,7 @@ AutoTagMate/
 ## Additional Features
 
 - **Key combination selection:**  
-  In the settings page, instead of manually entering the key combination, the user can simply press the desired combination (for example, Ctrl+P) and it will be automatically captured.
+  In the settings page, instead of manually entering the key combination, the user can simply press the desired combination (for example, Ctrl+\) and it will be automatically captured.
 - **Tailwind CSS:**  
   The settings page is styled using Tailwind CSS. The file `all.css` is located in the `css` folder.
 
