@@ -1,103 +1,75 @@
 # AutoTagMate
 
-**AutoTagMate** is a browser extension that automatically wraps entered text in HTML-like tags in input fields (`<input>`, `<textarea>`) and in elements with the `contenteditable` attribute. While originally designed to help with quick HTML wrapping, **AutoTagMate** also excels at structuring AI prompts for ChatGPT, Claude AI, or any other neural network-based system—making your prompts clearer and more focused.
-
----
-
-## Why It's Perfect for AI Work
-
-- **Boost Prompt Clarity:** By automatically wrapping text in tags, you can separate different sections of your prompt (instructions, examples, code snippets, etc.)—helping the AI understand your intentions more precisely.
-- **Zero Hassle:** Use a customizable activation key (e.g., `Tab`, `Ctrl+\`, or any other key combo) for instant wrapping. After typing an opening tag and “>”, the extension auto-inserts the matching closing tag—so you never have to worry about mismatched pairs.
-- **Exclude Sites Where You Don’t Need It:** Specify platforms or pages where the extension should be disabled, focusing all your tagging power on the exact areas you need.
-
----
-
-## Functionality
-
-1. **Wrapping text in tags:**
-   - **Without selection:** When the cursor is placed without any selected text, AutoTagMate detects the word or phrase immediately before the cursor and wraps it in `<text></text>`.
-   - **With selection:** If some text is selected, AutoTagMate wraps the selection directly in `<text></text>`.
-
-2. **Automatic tag closing:** Whenever you type an opening tag followed by the `>` character (e.g., `<Example>`), the extension automatically adds `</Example>` right after the cursor.
-
-3. **Settings:**
-   - **Activation key:** You can set any key combination on the fly. Click in the input field on the settings page, press your desired combination (e.g., `Ctrl+\`), and it will be saved automatically.
-   - **Enable/disable auto tag closing:** Turn off auto-closure if you prefer manual closing.
-   - **Excluded sites:** Maintain a list of websites where the extension will not run.
-
-4. **Tailwind CSS-based design:** The extension’s settings page (popup) is styled with Tailwind CSS. The main CSS file `all.css` is located in the `css` folder.
-
----
-
-## Also Great for Quick HTML Wrapping
-
-Although AutoTagMate is especially useful for structuring prompts, it remains a powerful tool for developers, bloggers, and content creators. When you need to wrap text in HTML tags quickly—be it for website editing or simple markup—AutoTagMate saves time by handling closing tags for you automatically.
-
----
-
-## Privacy Policy
-
-- **No external servers:** AutoTagMate does not send any data outside. All processing occurs locally in your browser.
-- **Local storage only:** Any settings (activation key, auto-close preference, excluded sites) are stored in your browser’s `chrome.storage` and do not leave your computer.
-
----
-
-## Project Structure
+**AutoTagMate** is a Chrome extension that wraps a word in HTML-like tags with one key press and auto-closes tags as you type. It works in plain `<input>` / `<textarea>` fields and in rich editors (`contenteditable`) — including ChatGPT, Claude and Gmail — which makes it a handy tool for structuring AI prompts:
 
 ```
-AutoTagMate/
+instructions  →  press Tab  →  <instructions>|</instructions>
+```
+
+[Chrome Web Store](https://chromewebstore.google.com/detail/autotagmate/glpeklpobckdibinochanehcbpmipkik)
+
+---
+
+## Features
+
+- **Wrap the word before the cursor.** Type `context`, press the activation key (default `Tab`) — you get `<context></context>` with the cursor between the tags.
+- **Wrap a selection.** Select text and press the key — the selection becomes the tag name.
+- **Auto-close tags.** Type `<example>` and `</example>` appears right after the cursor. Cyrillic and other scripts are supported (`<пример>`).
+- **Plays nice with editors.** Changes go through the browser's editing pipeline, so React / ProseMirror editors keep their state and `Ctrl+Z` undoes the change.
+- **Tab still works.** If there is nothing to wrap, the key does what it normally does (e.g. moves focus).
+- **Popup controls.** Turn the extension off globally or just for the current site in one click.
+- **Any shortcut.** Pick any combination on the settings page; letters are layout-independent (`Ctrl+P` works on a Russian layout too).
+- **Excluded sites**, light/dark theme, English and Russian UI.
+
+## Privacy
+
+AutoTagMate does not collect or send any data. All processing happens locally; settings are stored in `chrome.storage.sync`.
+
+The extension asks for access to all sites because it has to work in any text field. The `scripting` permission is only used to start the extension in tabs that were already open when it was installed or updated.
+
+---
+
+## Project structure
+
+```
 ├── manifest.json
-├── background.js
-├── content_script.js
-├── options.html
-├── options.js
+├── background.js          # injects the content script into open tabs on install/update
+├── common.js              # shared helpers: defaults, shortcut and site parsing
+├── content_script.js      # wrapping and auto-closing logic
+├── popup.html / popup.js  # toolbar popup
+├── options.html / options.js  # settings page with a "Try it" field
+├── i18n.js                # fills data-i18n attributes from _locales
+├── css/ui.css
+├── _locales/{en,ru}/messages.json
 ├── icons/
-│   ├── icon16.png
-│   ├── icon48.png
-│   └── icon128.png
-└── css/
-    └── all.css
+├── scripts/build.mjs      # copies extension files into dist/extension
+└── .github/workflows/release.yml
 ```
 
----
+## Development
 
-## Installation
+1. Open `chrome://extensions`, enable **Developer mode**.
+2. **Load unpacked** → select this folder.
+3. After editing files press the reload button on the extension card.
 
-1. Clone or download this project.
-2. (Optional) Generate or update the CSS via Tailwind CLI (if you need to modify it), producing `css/all.css`.
-3. In Google Chrome, navigate to `chrome://extensions/`.
-4. Enable **Developer Mode**.
-5. Click **Load unpacked** and select the project folder.
-6. AutoTagMate will install and become active on all pages.
+`npm run build` copies only the files the extension needs into `dist/extension`.
 
----
+## Release
 
-## Usage
+Releases are published to the Chrome Web Store automatically by GitHub Actions (Chrome Web Store API v2):
 
-1. **Wrapping text for AI prompts or HTML:**  
-   - Place your cursor in an input or `contenteditable` field, type a word or phrase, and press your configured activation key (default is `Tab` or your chosen combo).
-   - If text is highlighted, it will be wrapped in the tags directly.
-   - If no text is selected, the word before the cursor will be wrapped in `<text></text>`, and the cursor will be placed between the tags.
+1. Bump `version` in `manifest.json` and commit.
+2. Create and push a tag with the same version:
+   ```bash
+   git tag v1.1.0
+   git push origin main --tags
+   ```
+3. The **Release** workflow builds the zip, uploads it, submits it for review (the new version goes live automatically once approved) and attaches the zip to a GitHub release.
 
-2. **Automatic tag closing:**  
-   - When you type an opening tag (e.g., `<Example>`), AutoTagMate instantly inserts `</Example>` right after the cursor.
+The workflow needs these repository secrets: `CWS_CLIENT_ID`, `CWS_CLIENT_SECRET`, `CWS_REFRESH_TOKEN`, `CWS_PUBLISHER_ID`, `CWS_EXTENSION_ID`.
 
-3. **Settings page (popup):**  
-   - Adjust your activation key, toggle auto tag-closing on/off, or manage excluded websites.
-
----
-
-## Additional Features
-
-- **Key Combination Selection:**  
-  On the settings page, simply press your desired key combo (e.g., `Ctrl+\`) to configure the activation shortcut instead of typing it out manually.
-- **Focus on AI Prompt Structuring:**  
-  Build clear, well-structured prompts for ChatGPT, Claude AI, or any other generative model by automatically marking sections, instructions, or examples with tags.
-- **Tailwind CSS:**  
-  The stylish settings page is powered by Tailwind CSS, with its main stylesheet located in `css/all.css`.
-
----
+The store listing (description, screenshots, privacy answers) is not changed by the API — edit it in the [Developer Dashboard](https://chrome.google.com/webstore/devconsole).
 
 ## License
 
-This project is licensed under the MIT License.
+MIT
