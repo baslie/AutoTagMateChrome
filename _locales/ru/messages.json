@@ -1,0 +1,38 @@
+{
+  "extName": { "message": "AutoTagMate" },
+  "extDescription": { "message": "Оборачивает слово в <теги></теги> одной клавишей и сам закрывает теги. Удобно для структуры промптов в ChatGPT, Claude и других ИИ." },
+
+  "popupEnabled": { "message": "Включено" },
+  "popupThisSite": { "message": "Этот сайт" },
+  "popupActiveHere": { "message": "Работает на этом сайте" },
+  "popupUnavailable": { "message": "На этой странице расширения не работают" },
+  "popupKey": { "message": "Клавиша" },
+  "popupAutoClose": { "message": "Автозакрытие тегов" },
+  "popupHint": {
+    "message": "Напишите слово и нажмите $KEY$",
+    "placeholders": { "key": { "content": "$1" } }
+  },
+  "popupAllSettings": { "message": "Все настройки" },
+
+  "optTitle": { "message": "Настройки AutoTagMate" },
+  "optSubtitle": { "message": "Оборачивайте слова в теги одной клавишей — для чистых и структурных промптов." },
+  "optGeneral": { "message": "Основное" },
+  "optEnabled": { "message": "Расширение включено" },
+  "optEnabledHint": { "message": "Выключите, чтобы приостановить AutoTagMate на всех сайтах." },
+  "optKey": { "message": "Клавиша активации" },
+  "optKeyHint": { "message": "Кликните по полю и нажмите сочетание, например Ctrl+Shift+K. Если оборачивать нечего, клавиша работает как обычно." },
+  "optKeyPlaceholder": { "message": "Нажмите клавиши…" },
+  "optKeyReset": { "message": "Вернуть Tab" },
+  "optKeyForbidden": { "message": "Эта клавиша нужна для набора текста. Выберите другую или добавьте Ctrl / Alt." },
+  "optAutoClose": { "message": "Автозакрытие тегов" },
+  "optAutoCloseHint": { "message": "Набрали <тег> — сразу после курсора появится </тег>." },
+  "optExcluded": { "message": "Сайты-исключения" },
+  "optExcludedHint": { "message": "По одному сайту в строке. Поддомены тоже исключаются." },
+  "optTry": { "message": "Попробуйте" },
+  "optTryPlaceholder": { "message": "Напишите «инструкция» и нажмите клавишу…" },
+  "optHow": { "message": "Как это работает" },
+  "optHow1": { "message": "Без выделения: слово перед курсором превращается в <слово></слово>, курсор встаёт между тегами." },
+  "optHow2": { "message": "С выделением: выделенный текст становится именем тега." },
+  "optHow3": { "message": "Работает в обычных полях и в редакторах ChatGPT, Claude, Gmail. Ctrl+Z отменяет изменение." },
+  "optSaved": { "message": "Сохранено" }
+}

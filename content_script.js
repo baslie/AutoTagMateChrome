@@ -1,318 +1,319 @@
 /* content_script.js */
 
-"use strict";
-
 /**
  * AutoTagMate Content Script
  * -------------------------------------------
- * Enhanced Safe Browsing compliance:
- * - This script does NOT collect or send user data to external servers.
+ * - This script does NOT collect or send user data anywhere.
  * - All logic runs locally in the browser.
+ *
+ * Text is changed through document.execCommand("insertText"): unlike writing
+ * to el.value / textContent directly, it goes through the browser's editing
+ * pipeline, so React/ProseMirror/Lexical editors (ChatGPT, Claude, Gmail…)
+ * see the change and Ctrl+Z undoes it.
  */
+(() => {
+    "use strict";
 
-/* ============================================
-   1. Utility Functions
-   ============================================ *
+    const { DEFAULTS, parseSites, isHostExcluded, parseCombo, matchesCombo } =
+        globalThis.AutoTagMateCommon;
 
-/**
- * Проверяет, является ли элемент редактируемым.
- * @param {Element} el - HTML-элемент.
- * @returns {boolean} - true, если элемент редактируемый.
- */
-function isEditableElement(el) {
-    return (
-        el.tagName === "INPUT" ||
-        el.tagName === "TEXTAREA" ||
-        el.isContentEditable
-    );
-}
+    // The script may be injected again into an already open tab after the
+    // extension is updated. Tell the previous copy to remove its listeners.
+    const TEARDOWN_EVENT = "autotagmate:teardown";
+    document.dispatchEvent(new CustomEvent(TEARDOWN_EVENT));
 
-/**
- * Проверяет, есть ли выделение в элементе.
- * @param {Element} el - HTML-элемент.
- * @returns {boolean} - true, если в элементе есть выделение.
- */
-function hasSelection(el) {
-    if (el.tagName === "INPUT" || el.tagName === "TEXTAREA") {
-        return el.selectionStart !== el.selectionEnd;
-    } else if (el.isContentEditable) {
-        const sel = window.getSelection();
-        return sel && !sel.isCollapsed;
+    /* ============================================
+       1. Settings
+       ============================================ */
+
+    let settings = { ...DEFAULTS };
+    let combo = parseCombo(DEFAULTS.activationKey);
+    let excluded = false;
+
+    // Inside an iframe (e.g. an editor frame) the excluded-sites list should
+    // still apply to the site the user sees in the address bar.
+    function pageHost() {
+        const origins = location.ancestorOrigins;
+        if (origins && origins.length) {
+            try {
+                return new URL(origins[origins.length - 1]).hostname;
+            } catch (_) { /* fall through */ }
+        }
+        return location.hostname;
     }
-    return false;
-}
 
-/* ============================================
-   2. Tag Wrapping Functions
-   ============================================ */
+    function applySettings(items) {
+        settings = { ...DEFAULTS, ...items };
+        combo = parseCombo(settings.activationKey) || parseCombo(DEFAULTS.activationKey);
+        excluded = isHostExcluded(pageHost(), parseSites(settings.excludedSites));
+    }
 
-/**
- * Оборачивает выделенный текст в теги.
- * Для input/textarea: заменяет выделение на <текст></текст> (без содержимого между тегами).
- * Для contenteditable: удаляет выделенное содержимое и вставляет текстовый узел с тегами.
- * @param {Element} el - редактируемый HTML-элемент.
- */
-function wrapSelectedText(el) {
-    if (el.tagName === "INPUT" || el.tagName === "TEXTAREA") {
+    function isActive() {
+        return settings.enabled && !excluded;
+    }
+
+    function onStorageChanged(changes, area) {
+        if (area !== "sync") return;
+        const next = { ...settings };
+        for (const [key, change] of Object.entries(changes)) {
+            if (key in DEFAULTS) next[key] = change.newValue ?? DEFAULTS[key];
+        }
+        applySettings(next);
+    }
+
+    chrome.storage.sync.get(DEFAULTS, applySettings);
+    chrome.storage.onChanged.addListener(onStorageChanged);
+
+    /* ============================================
+       2. Editable elements
+       ============================================ */
+
+    // Input types that support selectionStart/setSelectionRange.
+    const TEXT_INPUT_TYPES = ["text", "search", "url", "tel", ""];
+
+    function isTextControl(el) {
+        if (el instanceof HTMLTextAreaElement) return !el.readOnly && !el.disabled;
+        if (el instanceof HTMLInputElement) {
+            return TEXT_INPUT_TYPES.includes(el.type) && !el.readOnly && !el.disabled;
+        }
+        return false;
+    }
+
+    /**
+     * Returns the real target of the event (looking inside Shadow DOM) if it
+     * can be edited, otherwise null.
+     */
+    function getEditableTarget(e) {
+        const path = e.composedPath ? e.composedPath() : [];
+        const el = path[0] || e.target;
+        if (!(el instanceof Element)) return null;
+        if (el.closest('[data-autotagmate="off"]')) return null;
+        if (isTextControl(el) || el.isContentEditable) return el;
+        return null;
+    }
+
+    /* ============================================
+       3. Text replacement helpers
+       ============================================ */
+
+    /**
+     * Replaces [start, end) of an input/textarea and puts the caret at caretPos.
+     */
+    function replaceInTextControl(el, start, end, text, caretPos) {
+        el.focus();
+        el.setSelectionRange(start, end);
+        let inserted = false;
+        try {
+            inserted = document.execCommand("insertText", false, text);
+        } catch (_) { /* fall back below */ }
+        if (!inserted) {
+            el.setRangeText(text, start, end, "end");
+            el.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: text }));
+        }
+        el.setSelectionRange(caretPos, caretPos);
+    }
+
+    /**
+     * Replaces a range inside a contenteditable element and moves the caret
+     * caretFromEnd characters back from the end of the inserted text.
+     */
+    function replaceInContentEditable(range, text, caretFromEnd) {
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+        let inserted = false;
+        try {
+            inserted = document.execCommand("insertText", false, text);
+        } catch (_) { /* fall back below */ }
+        if (!inserted) {
+            range.deleteContents();
+            const node = document.createTextNode(text);
+            range.insertNode(node);
+            sel.collapse(node, node.length);
+        }
+        moveCaretBack(sel, caretFromEnd);
+    }
+
+    function moveCaretBack(sel, count) {
+        if (!count) return;
+        const node = sel.focusNode;
+        if (node && node.nodeType === Node.TEXT_NODE && sel.focusOffset >= count) {
+            sel.collapse(node, sel.focusOffset - count);
+            return;
+        }
+        for (let i = 0; i < count; i++) sel.modify("move", "backward", "character");
+    }
+
+    /**
+     * Returns the text node and offset of a collapsed caret in contenteditable.
+     */
+    function caretTextPosition() {
+        const sel = window.getSelection();
+        if (!sel || sel.rangeCount === 0) return null;
+        const range = sel.getRangeAt(0);
+        let node = range.startContainer;
+        let offset = range.startOffset;
+        if (node.nodeType !== Node.TEXT_NODE) {
+            const prev = node.childNodes[offset - 1];
+            if (!prev || prev.nodeType !== Node.TEXT_NODE) return null;
+            node = prev;
+            offset = prev.length;
+        }
+        return { node, offset };
+    }
+
+    /* ============================================
+       4. Tag wrapping
+       ============================================ */
+
+    // Last word before the caret. "<" and ">" are excluded so that pressing the
+    // key right after an existing tag does not wrap the tag itself.
+    const WORD_BEFORE_CARET = /([^\s<>]+)$/u;
+
+    function makeTags(name) {
+        return { open: `<${name}>`, close: `</${name}>` };
+    }
+
+    /**
+     * Splits a selection into leading whitespace, tag name and trailing
+     * whitespace, so that "  foo " becomes "  <foo></foo> ".
+     */
+    function splitSelection(text) {
+        const m = text.match(/^(\s*)([\s\S]*?)(\s*)$/);
+        const name = m[2].replace(/\s+/g, " ");
+        return { lead: m[1], name, trail: m[3] };
+    }
+
+    /** Wraps the selection or the word before the caret. Returns true on success. */
+    function wrap(el) {
+        return isTextControl(el) ? wrapInTextControl(el) : wrapInContentEditable();
+    }
+
+    function wrapInTextControl(el) {
         const start = el.selectionStart;
         const end = el.selectionEnd;
-        const selected = el.value.substring(start, end).trim();
-        if (!selected) return;
+        if (start == null) return false;
 
-        const openingTag = `<${selected}>`;
-        const closingTag = `</${selected}>`;
-        // Заменяем выделенный текст на теги без содержимого между ними.
-        const newText = el.value.substring(0, start) + openingTag + closingTag + el.value.substring(end);
-        el.value = newText;
-        // Устанавливаем курсор между тегами.
-        const newPos = start + openingTag.length;
-        el.selectionStart = el.selectionEnd = newPos;
-    } else if (el.isContentEditable) {
+        if (start !== end) {
+            const { lead, name, trail } = splitSelection(el.value.slice(start, end));
+            if (!name) return false;
+            const { open, close } = makeTags(name);
+            replaceInTextControl(el, start, end, lead + open + close + trail, start + lead.length + open.length);
+            return true;
+        }
+
+        const match = el.value.slice(0, start).match(WORD_BEFORE_CARET);
+        if (!match) return false;
+        const wordStart = start - match[1].length;
+        const { open, close } = makeTags(match[1]);
+        replaceInTextControl(el, wordStart, start, open + close, wordStart + open.length);
+        return true;
+    }
+
+    function wrapInContentEditable() {
         const sel = window.getSelection();
-        if (sel.rangeCount === 0) return;
-        const range = sel.getRangeAt(0);
-        const selectedText = sel.toString().trim();
-        if (!selectedText) return;
+        if (!sel || sel.rangeCount === 0) return false;
 
-        const openingTag = `<${selectedText}>`;
-        const closingTag = `</${selectedText}>`;
-        // Формируем строку только из открывающего и закрывающего тега.
-        const newText = openingTag + closingTag;
-        // Удаляем выделенное содержимое и вставляем новый текстовый узел.
-        range.deleteContents();
-        const textNode = document.createTextNode(newText);
-        range.insertNode(textNode);
-        // Устанавливаем курсор между тегами (после открывающего тега).
-        const newRange = document.createRange();
-        newRange.setStart(textNode, openingTag.length);
-        newRange.collapse(true);
-        sel.removeAllRanges();
-        sel.addRange(newRange);
+        if (!sel.isCollapsed) {
+            const { lead, name, trail } = splitSelection(sel.toString());
+            if (!name) return false;
+            const { open, close } = makeTags(name);
+            replaceInContentEditable(sel.getRangeAt(0), lead + open + close + trail, close.length + trail.length);
+            return true;
+        }
+
+        const pos = caretTextPosition();
+        if (!pos) return false;
+        const match = pos.node.data.slice(0, pos.offset).match(WORD_BEFORE_CARET);
+        if (!match) return false;
+        const range = document.createRange();
+        range.setStart(pos.node, pos.offset - match[1].length);
+        range.setEnd(pos.node, pos.offset);
+        const { open, close } = makeTags(match[1]);
+        replaceInContentEditable(range, open + close, close.length);
+        return true;
     }
-}
 
-/**
- * Оборачивает последнее слово перед курсором в теги.
- * Если элемент содержит несколько слов, используется только последнее слово.
- * @param {Element} el - редактируемый HTML-элемент.
- */
-function wrapTextBeforeCursor(el) {
-    if (el.tagName === "INPUT" || el.tagName === "TEXTAREA") {
-        const start = el.selectionStart;
-        const text = el.value;
-        const beforeCursor = text.substring(0, start);
-        // Находим последнее слово (без пробелов)
-        const match = beforeCursor.match(/(\S+)$/);
-        if (!match) return;
-        const word = match[1];
-        const regionStart = start - word.length;
-        const openingTag = `<${word}>`;
-        const closingTag = `</${word}>`;
-        // Заменяем последнее слово на структуру тегов без содержимого.
-        const newText = text.substring(0, regionStart) + openingTag + closingTag + text.substring(start);
-        el.value = newText;
-        // Устанавливаем курсор между открывающим и закрывающим тегом.
-        const newPos = regionStart + openingTag.length;
-        el.selectionStart = el.selectionEnd = newPos;
-    } else if (el.isContentEditable) {
+    /* ============================================
+       5. Auto-closing tags
+       ============================================ */
+
+    // "<name>" right before the caret. The name starts with a letter/digit/_,
+    // may contain spaces, dots, colons and dashes, and does not end with a
+    // space, so "a < b > c" is not treated as a tag.
+    const OPEN_TAG_BEFORE_CARET = /<([\p{L}\p{N}_](?:[\p{L}\p{N}_ .:-]*[\p{L}\p{N}_.-])?)>$/u;
+
+    function autoClose(el) {
+        if (isTextControl(el)) {
+            const pos = el.selectionStart;
+            if (pos == null || pos !== el.selectionEnd) return;
+            const m = el.value.slice(0, pos).match(OPEN_TAG_BEFORE_CARET);
+            if (!m) return;
+            const close = `</${m[1]}>`;
+            if (el.value.startsWith(close, pos)) return;
+            replaceInTextControl(el, pos, pos, close, pos);
+            return;
+        }
+
         const sel = window.getSelection();
-        if (sel.rangeCount === 0) return;
-        const range = sel.getRangeAt(0);
-        const container = range.startContainer;
-        if (container.nodeType !== Node.TEXT_NODE) return;
-        const text = container.textContent;
-        const offset = range.startOffset;
-        const beforeCursor = text.substring(0, offset);
-        const match = beforeCursor.match(/(\S+)$/);
-        if (!match) return;
-        const word = match[1];
-        const wordStart = offset - word.length;
-        const openingTag = `<${word}>`;
-        const closingTag = `</${word}>`;
-        const newTagText = openingTag + closingTag;
-        const before = text.substring(0, wordStart);
-        const after = text.substring(offset);
-        container.textContent = before + newTagText + after;
-        // Устанавливаем курсор между тегами.
-        const newOffset = before.length + openingTag.length;
-        const newRange = document.createRange();
-        newRange.setStart(container, newOffset);
-        newRange.collapse(true);
-        sel.removeAllRanges();
-        sel.addRange(newRange);
+        if (!sel || !sel.isCollapsed) return;
+        const pos = caretTextPosition();
+        if (!pos) return;
+        const m = pos.node.data.slice(0, pos.offset).match(OPEN_TAG_BEFORE_CARET);
+        if (!m) return;
+        const close = `</${m[1]}>`;
+        if (pos.node.data.startsWith(close, pos.offset)) return;
+        const range = document.createRange();
+        range.setStart(pos.node, pos.offset);
+        range.collapse(true);
+        replaceInContentEditable(range, close, close.length);
     }
-}
 
-/* ============================================
-   3. Auto-Close Tag Function
-   ============================================ */
+    /* ============================================
+       6. Event handlers
+       ============================================ */
 
-/**
- * Автоматически закрывает тег при вводе символа ">".
- * @param {Element} el - редактируемый HTML-элемент.
- */
-function autoCloseTag(el) {
-    if (el.tagName === "INPUT" || el.tagName === "TEXTAREA") {
-        const pos = el.selectionStart;
-        const text = el.value;
-        const lastLt = text.lastIndexOf("<", pos);
-        if (lastLt === -1) return;
-        const tagCandidate = text.substring(lastLt, pos);
-        // Регулярное выражение для захвата имени тега (поддержка дефиса).
-        const m = tagCandidate.match(/^<\s*([\w\s\-]+)\s*>$/);
-        if (m) {
-            let tagName = m[1].trim();
-            if (!tagName) return;
-            const closingTag = `</${tagName}>`;
-            const newText = text.substring(0, pos) + closingTag + text.substring(pos);
-            el.value = newText;
-            el.selectionStart = el.selectionEnd = pos;
-        }
-    } else if (el.isContentEditable) {
-        const sel = window.getSelection();
-        if (sel.rangeCount === 0) return;
-        const range = sel.getRangeAt(0);
-        const container = range.startContainer;
-        if (container.nodeType !== Node.TEXT_NODE) return;
-        const text = container.textContent;
-        const offset = range.startOffset;
-        const lastLt = text.lastIndexOf("<", offset);
-        if (lastLt === -1) return;
-        const tagCandidate = text.substring(lastLt, offset);
-        const m = tagCandidate.match(/^<\s*([\w\s\-]+)\s*>$/);
-        if (m) {
-            let tagName = m[1].trim();
-            if (!tagName) return;
-            const closingTag = `</${tagName}>`;
-            const before = text.substring(0, offset);
-            const after = text.substring(offset);
-            container.textContent = before + closingTag + after;
-            const newRange = document.createRange();
-            newRange.setStart(container, offset);
-            newRange.collapse(true);
-            sel.removeAllRanges();
-            sel.addRange(newRange);
-        }
+    // After the extension is reloaded the old copy of this script loses access
+    // to chrome.* APIs; it must stop reacting to events.
+    function contextAlive() {
+        if (chrome.runtime && chrome.runtime.id) return true;
+        teardown();
+        return false;
     }
-}
 
-// Значения по умолчанию – будут обновлены из chrome.storage.
-let activationKey = "Tab"; // Клавиша активации по умолчанию.
-let enableAutoClose = true; // Автозакрытие тега включено по умолчанию.
-let excludedSites = ""; // Исключенные сайты
-
-// Проверка, не находится ли текущий сайт в списке исключенных
-function isExcludedSite() {
-    if (!excludedSites) return false;
-    
-    const currentHost = window.location.hostname;
-    const excludedArray = excludedSites.split(',').map(site => site.trim());
-    
-    return excludedArray.some(site => 
-        currentHost === site || 
-        currentHost.endsWith('.' + site) || 
-        site.startsWith('*.') && currentHost.endsWith(site.substring(1))
-    );
-}
-
-// Загружаем настройки из chrome.storage.sync.
-function loadSettings() {
-    chrome.storage.sync.get({
-        activationKey: "Tab",
-        autoCloseTag: true,
-        excludedSites: ""
-    }, (items) => {
-        activationKey = items.activationKey;
-        enableAutoClose = items.autoCloseTag;
-        excludedSites = items.excludedSites;
-        
-        // Если на исключенном сайте - можно отключить обработчик событий
-        if (isExcludedSite()) {
-            console.log("AutoTagMate: текущий сайт в списке исключенных");
-            document.removeEventListener("keydown", keydownHandler);
-        } else {
-            // Убедимся, что обработчик добавлен
-            document.addEventListener("keydown", keydownHandler);
-        }
-    });
-}
-
-// Загружаем настройки при запуске
-loadSettings();
-
-// Подписываемся на изменения настроек
-chrome.storage.onChanged.addListener(function(changes, namespace) {
-    if (namespace === 'sync') {
-        if (changes.activationKey) {
-            activationKey = changes.activationKey.newValue;
-        }
-        if (changes.autoCloseTag) {
-            enableAutoClose = changes.autoCloseTag.newValue;
-        }
-        if (changes.excludedSites) {
-            excludedSites = changes.excludedSites.newValue;
-            
-            // Перепроверяем, не должен ли быть отключен обработчик
-            if (isExcludedSite()) {
-                document.removeEventListener("keydown", keydownHandler);
-            } else {
-                document.addEventListener("keydown", keydownHandler);
-            }
-        }
-    }
-});
-
-// Выносим обработчик событий в отдельную функцию, чтобы его можно было удалить
-function keydownHandler(e) {
-    const target = e.target;
-    if (!isEditableElement(target)) return;
-
-    // Проверяем, соответствует ли нажатие клавиши установленной комбинации
-    let keyMatches = false;
-    
-    if (activationKey === "Tab" && e.key === "Tab" && !e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey) {
-        keyMatches = true;
-    } else {
-        // Разбираем пользовательскую комбинацию
-        const parts = activationKey.split('+');
-        
-        // Проверяем модификаторы
-        const hasCtrl = parts.includes("Ctrl");
-        const hasAlt = parts.includes("Alt");
-        const hasShift = parts.includes("Shift");
-        const hasMeta = parts.includes("Meta");
-        
-        // Последняя часть обычно клавиша (не модификатор)
-        const mainKey = parts.filter(p => !["Ctrl", "Alt", "Shift", "Meta"].includes(p))[0];
-        
-        // Проверяем соответствие модификаторов и клавиши
-        if (e.ctrlKey === hasCtrl && 
-            e.altKey === hasAlt && 
-            e.shiftKey === hasShift && 
-            e.metaKey === hasMeta &&
-            (e.key.toLowerCase() === mainKey.toLowerCase() || 
-             e.code === 'Key' + mainKey)) {
-            keyMatches = true;
+    function onKeydown(e) {
+        if (e.isComposing || e.defaultPrevented || !isActive() || !matchesCombo(e, combo)) return;
+        const el = getEditableTarget(e);
+        if (!el || !contextAlive()) return;
+        // Only swallow the key if something was actually wrapped: otherwise Tab
+        // keeps moving focus between fields as usual.
+        if (wrap(el)) {
+            e.preventDefault();
+            e.stopPropagation();
         }
     }
 
-    if (keyMatches) {
-        e.preventDefault(); // Предотвращаем стандартное поведение.
-        if (hasSelection(target)) {
-            wrapSelectedText(target);
-        } else {
-            wrapTextBeforeCursor(target);
-        }
+    function onInput(e) {
+        if (!settings.autoCloseTag || !isActive()) return;
+        if (e.inputType !== "insertText" || e.data !== ">") return;
+        const el = getEditableTarget(e);
+        if (!el || !contextAlive()) return;
+        // Let the editor finish processing the typed ">" first.
+        setTimeout(() => autoClose(el), 0);
     }
 
-    // Обработка автозакрытия тега при вводе символа ">".
-    if (enableAutoClose && e.key === ">") {
-        // Ждём вставки символа и затем выполняем автозакрытие.
-        setTimeout(() => {
-            autoCloseTag(target);
-        }, 0);
+    function teardown() {
+        document.removeEventListener("keydown", onKeydown, true);
+        document.removeEventListener("input", onInput, true);
+        document.removeEventListener(TEARDOWN_EVENT, teardown);
+        try {
+            chrome.storage.onChanged.removeListener(onStorageChanged);
+        } catch (_) { /* context already invalidated */ }
     }
-}
 
-// Отслеживаем события клавиатуры через делегирование.
-document.addEventListener("keydown", keydownHandler);
+    // Capture phase: the page's own handlers (e.g. an editor that uses Tab for
+    // indentation) must not get the key before us when we wrap a word.
+    document.addEventListener("keydown", onKeydown, true);
+    document.addEventListener("input", onInput, true);
+    document.addEventListener(TEARDOWN_EVENT, teardown);
+})();

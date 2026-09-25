@@ -1,46 +1,98 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 
 <head>
     <meta charset="UTF-8">
-    <title>AutoTagMate Settings</title>
-    <link href="css/all.css" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>AutoTagMate</title>
+    <link rel="icon" href="icons/icon32.png">
+    <link href="css/ui.css" rel="stylesheet">
     <style>
-        html, body {
-            width: 400px;
-            min-width: 400px;
-        }
+        .page { max-width: 640px; margin: 0 auto; padding: 40px 16px 64px; display: grid; gap: 28px; }
+        .hero { display: flex; gap: 16px; align-items: center; }
+        .hero img { width: 56px; height: 56px; }
+        .hero h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.01em; }
+        .hero p { color: var(--muted); margin-top: 2px; }
+        .section-title { font-size: 12px; font-weight: 650; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 0 4px 8px; }
+        .block { padding: 16px; display: grid; gap: 10px; }
+        .block + .block, .row + .block, .block + .row { border-top: 1px solid var(--border); }
+        .key-line { display: flex; gap: 8px; }
+        .key-line .input { font-family: var(--mono); cursor: pointer; caret-color: transparent; }
+        .how { margin: 0; padding: 16px 16px 16px 34px; display: grid; gap: 8px; }
+        .how li::marker { color: var(--accent); }
+        .try { min-height: 110px; font-family: var(--font); font-size: 14px; }
     </style>
 </head>
 
-<body class="bg-gray-100 text-gray-800">
-    <div class="w-full mx-auto p-6 bg-white shadow-md mt-10 rounded">
-        <h1 class="text-2xl font-bold mb-4">AutoTagMate Settings</h1>
-        <form id="optionsForm" class="space-y-4">
+<body>
+    <main class="page">
+        <header class="hero">
+            <img src="icons/icon128.png" alt="">
             <div>
-                <label for="activationKey" class="block text-sm font-medium text-gray-700">
-                    Activation Key:
+                <h1 data-i18n="optTitle"></h1>
+                <p data-i18n="optSubtitle"></p>
+            </div>
+        </header>
+
+        <section>
+            <h2 class="section-title" data-i18n="optGeneral"></h2>
+            <div class="card">
+                <label class="row">
+                    <span class="row-text">
+                        <span class="row-title" data-i18n="optEnabled"></span>
+                        <span class="row-hint" data-i18n="optEnabledHint" style="display:block"></span>
+                    </span>
+                    <input type="checkbox" class="switch" id="enabled">
                 </label>
-                <!-- Readonly field – the key combination will be captured on key press -->
-                <input type="text" id="activationKey" placeholder="Press key combination" class="mt-1 block w-full border border-gray-300 rounded-md p-2 focus:ring-blue-500 focus:border-blue-500" readonly>
-                <p class="mt-1 text-sm text-gray-500">Press your desired key combination (e.g., Ctrl+P).</p>
-            </div>
-            <div class="flex items-center">
-                <input type="checkbox" id="autoCloseTag" class="h-4 w-4 text-blue-600 border-gray-300 rounded">
-                <label for="autoCloseTag" class="ml-2 block text-sm text-gray-700">Enable auto tag closing</label>
-            </div>
-            <div>
-                <label for="excludedSites" class="block text-sm font-medium text-gray-700">
-                    Excluded sites (comma-separated):
+
+                <div class="block">
+                    <label class="row-title" for="activationKey" data-i18n="optKey"></label>
+                    <div class="key-line">
+                        <input type="text" id="activationKey" class="input" readonly data-i18n-placeholder="optKeyPlaceholder">
+                        <button type="button" class="btn" id="resetKey" data-i18n="optKeyReset"></button>
+                    </div>
+                    <p class="row-hint" data-i18n="optKeyHint"></p>
+                    <p class="error" id="keyError" role="alert"></p>
+                </div>
+
+                <label class="row">
+                    <span class="row-text">
+                        <span class="row-title" data-i18n="optAutoClose"></span>
+                        <span class="row-hint" data-i18n="optAutoCloseHint" style="display:block"></span>
+                    </span>
+                    <input type="checkbox" class="switch" id="autoCloseTag">
                 </label>
-                <input type="text" id="excludedSites" placeholder="example.com, another.com" class="mt-1 block w-full border border-gray-300 rounded-md p-2 focus:ring-blue-500 focus:border-blue-500">
+
+                <div class="block">
+                    <label class="row-title" for="excludedSites" data-i18n="optExcluded"></label>
+                    <textarea id="excludedSites" class="textarea" data-autotagmate="off" rows="4" spellcheck="false" placeholder="example.com&#10;mail.example.org"></textarea>
+                    <p class="row-hint" data-i18n="optExcludedHint"></p>
+                </div>
             </div>
-            <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700">
-                Save Settings
-            </button>
-        </form>
-        <p id="status" class="mt-4 text-center text-green-600"></p>
-    </div>
+        </section>
+
+        <section>
+            <h2 class="section-title" data-i18n="optTry"></h2>
+            <textarea class="textarea try" id="tryIt" data-i18n-placeholder="optTryPlaceholder"></textarea>
+        </section>
+
+        <section>
+            <h2 class="section-title" data-i18n="optHow"></h2>
+            <ol class="card how">
+                <li data-i18n="optHow1"></li>
+                <li data-i18n="optHow2"></li>
+                <li data-i18n="optHow3"></li>
+            </ol>
+        </section>
+    </main>
+
+    <div class="toast" id="toast" role="status" data-i18n="optSaved"></div>
+
+    <script src="i18n.js"></script>
+    <script src="common.js"></script>
+    <!-- Content scripts are not injected into extension pages, so the
+         "Try it" field loads the same script directly. -->
+    <script src="content_script.js"></script>
     <script src="options.js"></script>
 </body>
 

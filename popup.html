@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>AutoTagMate</title>
+    <link href="css/ui.css" rel="stylesheet">
+    <style>
+        body { width: 320px; }
+        .popup { padding: 14px; display: grid; gap: 12px; }
+        .header { display: flex; align-items: center; gap: 10px; }
+        .header img { width: 28px; height: 28px; }
+        .header h1 { font-size: 15px; font-weight: 650; }
+        .header .version { font-size: 12px; }
+        .header .switch { margin-left: auto; }
+        .site { font-family: var(--mono); font-size: 12.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .hint { text-align: center; padding: 10px 12px; border-radius: 10px; background: var(--accent-soft); font-size: 12.5px; }
+        .hint code { background: var(--surface); }
+        .footer { display: flex; justify-content: space-between; align-items: center; font-size: 12.5px; }
+        body.off .body { opacity: 0.5; }
+    </style>
+</head>
+
+<body>
+    <main class="popup">
+        <header class="header">
+            <img src="icons/icon48.png" alt="">
+            <div>
+                <h1>AutoTagMate</h1>
+                <p class="version muted" id="version"></p>
+            </div>
+            <input type="checkbox" class="switch" id="enabled" data-i18n-title="popupEnabled">
+        </header>
+
+        <div class="body">
+            <section class="card">
+                <div class="row">
+                    <div class="row-text">
+                        <div class="row-title" data-i18n="popupActiveHere"></div>
+                        <div class="site" id="site"></div>
+                    </div>
+                    <input type="checkbox" class="switch" id="siteActive">
+                </div>
+                <div class="row">
+                    <div class="row-title" data-i18n="popupAutoClose"></div>
+                    <input type="checkbox" class="switch" id="autoCloseTag">
+                </div>
+            </section>
+        </div>
+
+        <p class="hint" id="hint"></p>
+
+        <footer class="footer">
+            <span class="muted"><span data-i18n="popupKey"></span>: <kbd id="key"></kbd></span>
+            <a href="#" id="openOptions" data-i18n="popupAllSettings"></a>
+        </footer>
+    </main>
+    <script src="i18n.js"></script>
+    <script src="common.js"></script>
+    <script src="popup.js"></script>
+</body>
+
+</html>

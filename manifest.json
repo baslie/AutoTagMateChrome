@@ -1,35 +1,45 @@
 {
   "manifest_version": 3,
-  "name": "AutoTagMate",
-  "version": "1.0.1",
-  "description": "An extension for wrapping text in tags in input fields on websites.",
+  "name": "__MSG_extName__",
+  "short_name": "AutoTagMate",
+  "version": "1.1.0",
+  "description": "__MSG_extDescription__",
+  "default_locale": "en",
+  "minimum_chrome_version": "105",
   "permissions": [
-    "storage"
+    "storage",
+    "scripting"
   ],
   "host_permissions": [
     "<all_urls>"
   ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
   "action": {
     "default_icon": {
       "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
       "48": "icons/icon48.png",
       "128": "icons/icon128.png"
     },
-    "default_popup": "options.html"
+    "default_title": "AutoTagMate",
+    "default_popup": "popup.html"
   },
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["content_script.js"],
-      "run_at": "document_end"
+      "js": ["common.js", "content_script.js"],
+      "run_at": "document_end",
+      "all_frames": true,
+      "match_about_blank": true
     }
   ],
   "background": {
     "service_worker": "background.js"
-  },
-  "options_page": "options.html",
-  "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self';"
   },
   "options_ui": {
     "page": "options.html",

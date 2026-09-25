@@ -1,0 +1,38 @@
+{
+  "extName": { "message": "AutoTagMate" },
+  "extDescription": { "message": "Wrap a word in <tags></tags> with one key and auto-close tags. Handy for structuring prompts for ChatGPT, Claude and other AI." },
+
+  "popupEnabled": { "message": "Enabled" },
+  "popupThisSite": { "message": "This site" },
+  "popupActiveHere": { "message": "Active on this site" },
+  "popupUnavailable": { "message": "Extensions can't run on this page" },
+  "popupKey": { "message": "Wrap key" },
+  "popupAutoClose": { "message": "Auto-close tags" },
+  "popupHint": {
+    "message": "Type a word and press $KEY$",
+    "placeholders": { "key": { "content": "$1" } }
+  },
+  "popupAllSettings": { "message": "All settings" },
+
+  "optTitle": { "message": "AutoTagMate settings" },
+  "optSubtitle": { "message": "Wrap words in tags with one key — for clean, structured AI prompts." },
+  "optGeneral": { "message": "General" },
+  "optEnabled": { "message": "Extension enabled" },
+  "optEnabledHint": { "message": "Turn off to pause AutoTagMate on all sites." },
+  "optKey": { "message": "Activation key" },
+  "optKeyHint": { "message": "Click the field and press a combination, e.g. Ctrl+Shift+K. If there is nothing to wrap, the key works as usual." },
+  "optKeyPlaceholder": { "message": "Press keys…" },
+  "optKeyReset": { "message": "Reset to Tab" },
+  "optKeyForbidden": { "message": "This key is needed for typing. Pick another one or add Ctrl / Alt." },
+  "optAutoClose": { "message": "Auto-close tags" },
+  "optAutoCloseHint": { "message": "Typing <tag> inserts </tag> right after the cursor." },
+  "optExcluded": { "message": "Excluded sites" },
+  "optExcludedHint": { "message": "One site per line. Subdomains are excluded too." },
+  "optTry": { "message": "Try it" },
+  "optTryPlaceholder": { "message": "Type “instructions” and press the key…" },
+  "optHow": { "message": "How it works" },
+  "optHow1": { "message": "No selection: the word before the cursor becomes <word></word>, the cursor goes between the tags." },
+  "optHow2": { "message": "With a selection: the selected text becomes the tag name." },
+  "optHow3": { "message": "Works in text fields and rich editors — ChatGPT, Claude, Gmail. Ctrl+Z undoes the change." },
+  "optSaved": { "message": "Saved" }
+}
