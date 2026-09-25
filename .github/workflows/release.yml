@@ -1,0 +1,49 @@
+# Publishes a new version to the Chrome Web Store when a tag like v1.2.3 is pushed.
+#
+# Required repository secrets (Settings -> Secrets and variables -> Actions):
+#   CWS_CLIENT_ID, CWS_CLIENT_SECRET, CWS_REFRESH_TOKEN, CWS_PUBLISHER_ID, CWS_EXTENSION_ID
+
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Build (checks that the tag matches manifest.json)
+        run: node scripts/build.mjs --tag "$GITHUB_REF_NAME"
+
+      - name: Zip
+        run: |
+          cd dist/extension
+          zip -r -X "../autotagmate-$GITHUB_REF_NAME.zip" .
+
+      - name: Upload to Chrome Web Store and submit for review
+        env:
+          CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
+          REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
+          PUBLISHER_ID: ${{ secrets.CWS_PUBLISHER_ID }}
+          EXTENSION_ID: ${{ secrets.CWS_EXTENSION_ID }}
+        run: npx --yes chrome-webstore-upload-cli@4.0.1 --source "dist/autotagmate-$GITHUB_REF_NAME.zip"
+
+      - name: GitHub release with the zip
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" "dist/autotagmate-$GITHUB_REF_NAME.zip" --title "$GITHUB_REF_NAME" --generate-notes

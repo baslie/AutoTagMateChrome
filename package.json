@@ -1,0 +1,12 @@
+{
+  "name": "autotagmate",
+  "private": true,
+  "description": "Build and release scripts for the AutoTagMate Chrome extension.",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
