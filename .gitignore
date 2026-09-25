@@ -3,4 +3,3 @@ dist/
 *.zip
 *.crx
 *.pem
-.claude/settings.local.json
